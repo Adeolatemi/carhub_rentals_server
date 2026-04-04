@@ -2,11 +2,11 @@
   "name": "carhub-server",
   "version": "0.1.0",
   "private": true,
-  "main": "dist/index.js",
+  "main": "dist/app.ts",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/app.ts",
     "prod": "npm run build && npm start",
     "prisma": "prisma"
   },
