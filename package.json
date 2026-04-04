@@ -2,11 +2,11 @@
   "name": "carhub-server",
   "version": "0.1.0",
   "private": true,
-  "main": "dist/app.ts",
+  "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
-    "start": "node dist/app.ts",
+    "start": "node dist/index.js",
     "prod": "npm run build && npm start",
     "prisma": "prisma"
   },
@@ -35,7 +35,7 @@
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.0.0"
   },
-  "description": "This folder contains a minimal scaffold for the backend API (TypeScript + Express + Prisma).",
+  "description": "Minimal scaffold for the backend API (TypeScript + Express + Prisma).",
   "keywords": [],
   "author": "",
   "license": "ISC"
