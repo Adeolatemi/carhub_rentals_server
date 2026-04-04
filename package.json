@@ -33,7 +33,7 @@
     "@types/node": "^18.19.130",
     "prisma": "^5.22.0",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.9.3"
   },
   "description": "Minimal scaffold for the backend API (TypeScript + Express + Prisma).",
   "keywords": [],
