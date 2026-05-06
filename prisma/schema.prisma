@@ -1,7 +1,5 @@
-
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -14,25 +12,103 @@ model User {
   email     String   @unique
   password  String
   name      String?
-  role      String  
-  phone     String? 
-  company   String? 
+  role      String   @default("CUSTOMER")
+  phone     String?
+  company   String?
   isActive  Boolean  @default(true)
 
+  
+ // 2FA fields
+  twoFactorEnabled   Boolean   @default(false)
+  twoFactorSecret    String?
+  // ✅ AUTH / SECURITY
+  emailVerified    Boolean   @default(false)
+  verificationCode String?
+  codeExpires      DateTime?
+  resetToken       String?
+  resetExpires     DateTime?
+
+  // ✅ KYC
   kycStatus String?
   kycFile   String?
+
+ 
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // ✅ RELATIONS
   bookings       CarBooking[]
+  orders         Order[]
   auditLogs      AuditLog[]      @relation("UserAuditLogs")
   partnerDetails PartnerDetails?
-  vehicles       Vehicle[]
+  userVehicles   Vehicle[]       @relation("UserVehicles")
   subscriptions  Subscription[]
   kycHistory     KycHistory[]
-  orders         Order[]
+}
 
+model CarBooking {
+  id              String   @id @default(uuid())
+  fullName        String
+  phone           String
+  email           String
+  pickupLocation  String
+  dropoffLocation String
+  startDate       DateTime
+  endDate         DateTime
+  totalAmount     Float    @default(0)
+  status          String   @default("PENDING")
+
+  userId    String?
+  vehicleId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User?    @relation(fields: [userId], references: [id])
+  vehicle Vehicle? @relation("BookingVehicle", fields: [vehicleId], references: [id])
+}
+
+model Order {
+  id              String   @id @default(uuid())
+  userId          String
+  vehicleId       String?
+
+  fullName        String?
+  phone           String?
+  email           String?
+  pickupLocation  String?
+  dropoffLocation String?
+  pickupDate      DateTime?
+  dropoffDate     DateTime?
+
+  total           Float    @default(0)
+  status          String   @default("PENDING")
+  adminNote       String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id])
+  vehicle Vehicle? @relation("OrderVehicle", fields: [vehicleId], references: [id])
+}
+
+model Vehicle {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  dailyRate   Float
+  imageUrl    String?
+  available   Boolean  @default(true)
+
+  ownerId     String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner    User?        @relation("UserVehicles", fields: [ownerId], references: [id])
+  bookings CarBooking[] @relation("BookingVehicle")
+  orders   Order[]      @relation("OrderVehicle")
 }
 
 model KycHistory {
@@ -45,160 +121,42 @@ model KycHistory {
   user User @relation(fields: [userId], references: [id])
 }
 
-model VehicleCategory {
-  id       String    @id @default(cuid())
-  name     String    @unique
-  vehicles Vehicle[]
-}
-
-model Vehicle {
-  id          String           @id @default(cuid())
-  title       String
-  description String?
-  dailyRate   Float
-  available   Boolean          @default(true)
-  imageUrl    String?
-
-  category    VehicleCategory? @relation(fields: [categoryId], references: [id])
-  categoryId  String?
-
-  owner       User?            @relation(fields: [ownerId], references: [id])
-  ownerId     String?
-
-  features    VehicleFeature[]
-  bookings    CarBooking[]
-  orders      Order[]
-
-  createdAt   DateTime         @default(now())
-}
-
-model CarBooking {
-  id              String   @id @default(cuid())
-  user            User     @relation(fields: [userId], references: [id])
-  userId          String
-  vehicle         Vehicle? @relation(fields: [vehicleId], references: [id])
-  vehicleId       String?
-  fullName        String
-  phone           String
-  email           String
-  pickupLocation  String
-  dropoffLocation String
-  startDate       DateTime
-  endDate         DateTime
-  totalAmount     Float
-  status          String   @default("PENDING")
-  adminNote       String?
-  canceledReason  String?
-  createdAt       DateTime @default(now())
-}
-
-model Order {
-  id              String   @id @default(cuid())
-  userId          String
-  vehicleId       String?
-  status          String   @default("PENDING")
-  total           Float
-  fullName        String?
-  phone           String?
-  email           String?
-  carType         String?
-  serviceType     String?
-  driver          String?
-  passengers      Int?
-  requests        String?
-  pickupLocation  String?
-  dropoffLocation String?
-  pickupDate      DateTime?
-  dropoffDate     DateTime?
-  pickupTime      String?
-  dropoffTime     String?
-  createdAt       DateTime @default(now())
-
-  user            User     @relation(fields: [userId], references: [id])
-  vehicle         Vehicle? @relation(fields: [vehicleId], references: [id])
-  attachments     OrderAttachment[]
-  transactions    Transaction[]
-
-  @@map("orders")
-}
-
-model OrderAttachment {
-  id        String   @id @default(cuid())
-  orderId   String
-  order     Order    @relation(fields: [orderId], references: [id])
-  path      String
-  type      String?
-  createdAt DateTime @default(now())
-}
-
-model Transaction {
-  id          String   @id @default(cuid())
-  orderId     String
-  order       Order    @relation(fields: [orderId], references: [id])
-  provider    String
-  providerRef String?  @unique
-  amount      Float
-  createdAt   DateTime @default(now())
-}
-
-model Feature {
-  id       String           @id @default(cuid())
-  name     String           @unique
-  desc     String?
-
-  vehicles VehicleFeature[]
-}
-
-model VehicleFeature {
-  id        String  @id @default(cuid())
-
-  vehicle   Vehicle @relation(fields: [vehicleId], references: [id])
-  vehicleId String
-
-  feature   Feature @relation(fields: [featureId], references: [id])
-  featureId String
-
-  @@unique([vehicleId, featureId])
-}
-
 model AuditLog {
-  id        String   @id @default(cuid())
-
-  actorId   String?
-  actor     User?    @relation("UserAuditLogs", fields: [actorId], references: [id])
-
+  id        String   @id @default(uuid())
+  userId    String
   action    String
-  meta      String?
-
+  details   String?
   createdAt DateTime @default(now())
+
+  user User @relation("UserAuditLogs", fields: [userId], references: [id])
 }
 
 model PartnerDetails {
-  id        String   @id @default(cuid())
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String   @unique
-  company   String?
-  phone     String?
-  cacNumber String?
-  fleetSize String?
-  address   String?
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  company    String
+  phone      String?
+  cacNumber  String?
+  fleetSize  String?
+  address    String?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 model Subscription {
-  id        String   @id @default(cuid())
+  id         String   @id @default(uuid())
+  userId     String
+  plan       String
+  status     String   @default("ACTIVE")
 
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String   @unique
+  startDate  DateTime @default(now())
+  endDate    DateTime
 
-  plan      String
-  status    String   @default("TRIAL")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  startDate DateTime @default(now())
-  endDate   DateTime?
-
-  transactionRef String?
-
-  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id])
 }
-

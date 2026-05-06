@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { authenticate, AuthRequest } from "../middleware/auth";
 import { prisma } from "../prismaClient";
+import { verifyTwoFactorToken } from '../services/twoFactorService';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET!;
@@ -88,6 +89,16 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
+    // Check if 2FA is enabled
+    if (user.twoFactorEnabled) {
+      // Return requires2FA flag instead of token
+      return res.json({
+        requires2FA: true,
+        userId: user.id,
+        message: '2FA verification required',
+      });
+    }
+
     const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: "7d" });
 
     res.cookie("token", token, {
@@ -108,6 +119,34 @@ router.post("/login", async (req, res) => {
   }
 });
 
+// Verify 2FA after login
+router.post('/verify-2fa', async (req, res) => {
+  try {
+    const { userId, token } = req.body;
+    
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.twoFactorSecret) {
+      return res.status(400).json({ error: 'Invalid request' });
+    }
+    
+    const isValid = verifyTwoFactorToken(user.twoFactorSecret, token);
+    if (!isValid) {
+      return res.status(401).json({ error: 'Invalid 2FA code' });
+    }
+    
+    const jwtToken = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: "7d" });
+    
+    res.json({
+      ok: true,
+      token: jwtToken,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    });
+  } catch (error) {
+    console.error('2FA verification error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Logout
 router.post("/logout", (_req, res) => {
   res.clearCookie("token");
@@ -119,14 +158,14 @@ router.get("/me", authenticate, async (req: AuthRequest, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user!.id },
-      select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true },
+      select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true, twoFactorEnabled: true },
     });
     if (!user) return res.status(404).json({ error: "User not found" });
     res.json({ ok: true, user });
   } catch (err) {
     console.error("Get current user error:", err);
     res.status(500).json({ error: "Internal Server Error" });
-  }
+  } 
 });
 
 export default router;

@@ -9,15 +9,15 @@ import { prisma } from "./prismaClient";
 const PORT = process.env.PORT || 5000;
 
 // Serve uploads
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+// app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // ✅ Serve frontend static files (VERY IMPORTANT)
-app.use(express.static(path.join(__dirname, "../public")));
+// app.use(express.static(path.join(__dirname, "../public")));
 
 // ✅ Handle React/Vite routing (SPA fallback)
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "../public/index.html"));
-});
+// app.get("*", (req, res) => {
+//   res.sendFile(path.join(__dirname, "../public/index.html"));
+// });
 
 // Start server
 const server = app.listen(Number(PORT), "0.0.0.0", () => {
