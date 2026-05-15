@@ -4,11 +4,77 @@ import jwt from "jsonwebtoken";
 import { authenticate, AuthRequest } from "../middleware/auth";
 import { prisma } from "../prismaClient";
 import { verifyTwoFactorToken } from '../services/twoFactorService';
-
+import { validateEmail, sendWelcomeEmail, sendAdminNewUserNotification } from '../services/email.service.js';
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET!;
 
 // Register
+
+// In your register route, add validation:
+router.post('/register', async (req, res) => {
+  try {
+    const { name, email, password, role, phone, company } = req.body;
+    
+    // ✅ Validate email format
+    if (!validateEmail(email)) {
+      return res.status(400).json({ 
+        error: 'Please enter a valid email address (e.g., name@example.com)' 
+      });
+    }
+    
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() }
+    });
+    
+    if (existingUser) {
+      return res.status(400).json({ error: 'User already exists with this email' });
+    }
+    
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Create user
+    const user = await prisma.user.create({
+      data: {
+        name: name || null,
+        email: email.toLowerCase(),
+        password: hashedPassword,
+        role: role || 'CUSTOMER',
+        phone: phone || null,
+        company: company || null,
+        isActive: true,
+      }
+    });
+    
+    // ✅ Send welcome email (don't await - fire and forget)
+    sendWelcomeEmail({ name: user.name, email: user.email }).catch(console.error);
+    
+    // ✅ Send admin notification (don't await - fire and forget)
+    sendAdminNewUserNotification(user).catch(console.error);
+    
+    // Generate token
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    res.status(201).json({
+      message: 'Registration successful! Welcome email sent.',
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      }
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Registration failed' });
+  }
+});
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password, phone, role, company } = req.body;
