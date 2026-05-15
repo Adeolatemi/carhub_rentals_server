@@ -7,7 +7,7 @@ const router = express.Router();
 const prisma = new PrismaClient();
 
 // Subscribe to newsletter
-router.post('/newsletter/subscribe', async (req, res) => {
+router.post('/subscribe', async (req, res) => {
   try {
     const { email } = req.body;
     
@@ -52,7 +52,7 @@ router.post('/newsletter/subscribe', async (req, res) => {
 });
 
 // Unsubscribe from newsletter
-router.post('/newsletter/unsubscribe', async (req, res) => {
+router.post('/unsubscribe', async (req, res) => {
   try {
     const { email } = req.body;
     
